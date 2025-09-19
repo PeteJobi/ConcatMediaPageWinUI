@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="ConcatMediaPage.ConcatMediaPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:ConcatMedia"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:converters="using:CommunityToolkit.WinUI.Converters"
+    xmlns:concatMediaPage="using:ConcatMediaPage"
+    mc:Ignorable="d">
+
+    <Page.Resources>
+        <converters:BoolToVisibilityConverter x:Name="BoolToVisibilityConverter"/>
+        <converters:BoolToObjectConverter x:Key="CloseOrCancelConverter" TrueValue="Close" FalseValue="Cancel"/>
+        <converters:BoolToObjectConverter x:Key="ResumeOrPauseConverter" TrueValue="Resume" FalseValue="Pause"/>
+        <converters:BoolToObjectConverter x:Key="ResumeOrPauseGlyphConverter" TrueValue="&#xE768;" FalseValue="&#xE784;"/>
+    </Page.Resources>
+
+    <Grid AllowDrop="True" Drop="MainPage_OnDrop" DragOver="MainPage_OnDragOver" Margin="10">
+        <RelativePanel Visibility="{x:Bind viewModel.HasItems, Mode=OneWay}">
+            <Grid RelativePanel.Above="TextBlock" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True">
+                <ListView Margin="0, 0, 0, 10" HorizontalAlignment="Center" ItemsSource="{x:Bind viewModel.Items, Mode=OneWay}"
+                          SelectionMode="None" CanReorderItems="True" CanDrag="True" AllowDrop="True">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="concatMediaPage:ConcatItem">
+                            <Grid Height="auto" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" BorderThickness="1"
+                                    Background="{ThemeResource TrackBackground}" Padding="10"
+                                    ToolTipService.ToolTip="{x:Bind FilePath}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock VerticalAlignment="Center" Text="{x:Bind FileName}" FontSize="20" TextTrimming="CharacterEllipsis"/>
+                                <Button Grid.Column="1" Margin="10,0,0,0" Click="DeleteItemClicked">
+                                    <SymbolIcon Symbol="Delete"/>
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Grid>
+            <TextBlock x:Name="TextBlock" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                       RelativePanel.Above="ProcessControls" Margin="0,0,0,10"
+                       Foreground="{StaticResource TextFillColorSecondaryBrush}" HorizontalTextAlignment="Center">
+                You can re-order media by dragging and dropping them. This order they appear in the list will determine the order they 
+                are merged in the output media.
+            </TextBlock>
+            <RelativePanel x:Name="ProcessControls" RelativePanel.Above="ButtonsGrid" Padding="10,0,10,0" Margin="0,0,0,10"
+                           Visibility="{x:Bind viewModel.BeforeOperation, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=True}"
+                           RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True">
+                <TextBlock Name="TotalSegmentCount"/>
+                <TextBlock Name="CurrentSegmentFileName" RelativePanel.AlignRightWith="OverallConcatProgress" MaxWidth="400" TextTrimming="CharacterEllipsis"/>
+                <ProgressBar Name="OverallConcatProgress" Maximum="{x:Bind progressMax}" RelativePanel.AlignLeftWithPanel="True"
+                 RelativePanel.Below="TotalSegmentCount" RelativePanel.LeftOf="CancelSplit" Margin="0,4,0,0"/>
+                <Button Name="CancelSplit" RelativePanel.AlignRightWithPanel="True" Margin="10,0,0,0" Width="120" Click="CancelOrCloseConcat_OnClick">
+                    <FlyoutBase.AttachedFlyout>
+                        <Flyout x:Name="CancelFlyout">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Style="{ThemeResource BaseTextBlockStyle}" VerticalAlignment="Center">Cancel process?</TextBlock>
+                                <Button ToolTipService.ToolTip="Done" Margin="10,0,0,0" Click="CancelProcess">
+                                    <FontIcon Glyph="&#xE8FB;" />
+                                </Button>
+                            </StackPanel>
+                        </Flyout>
+                    </FlyoutBase.AttachedFlyout>
+                    <StackPanel Orientation="Horizontal">
+                        <FontIcon Glyph="&#xE711;" Margin="0,0,10,0" />
+                        <TextBlock VerticalAlignment="Center" Text="{x:Bind viewModel.AfterOperation, Mode=OneWay, Converter={StaticResource CloseOrCancelConverter}}"/>
+                    </StackPanel>
+                </Button>
+                <TextBlock Name="CurrentConcatProgressText" RelativePanel.Above="CurrentConcatProgress" RelativePanel.Below="OverallConcatProgress"
+                           RelativePanel.AlignHorizontalCenterWith="CurrentConcatProgress" Margin="0,30,0,0"/>
+                <ProgressBar Name="CurrentConcatProgress" Maximum="{x:Bind progressMax}" RelativePanel.AlignLeftWithPanel="True"
+                             RelativePanel.AlignBottomWithPanel="True" RelativePanel.LeftOf="PauseConcat" Margin="0,4,0,0"/>
+                <Button Name="PauseConcat" RelativePanel.AlignBottomWithPanel="True" RelativePanel.AlignRightWithPanel="True" Width="120" Margin="10,0,0,0"
+                        Click="PauseOrViewConcat_OnClick">
+                    <Grid>
+                        <StackPanel Orientation="Horizontal" Visibility="{x:Bind viewModel.AfterOperation, Mode=OneWay}">
+                            <FontIcon Glyph="&#xE8A7;" Margin="0,0,10,0" />
+                            <TextBlock VerticalAlignment="Center" Text="View"/>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Visibility="{x:Bind viewModel.DuringOperation, Mode=OneWay}">
+                            <FontIcon Glyph="{x:Bind viewModel.ProcessPaused, Mode=OneWay, Converter={StaticResource ResumeOrPauseGlyphConverter}}" Margin="0,0,10,0" />
+                            <TextBlock VerticalAlignment="Center" Text="{x:Bind viewModel.ProcessPaused, Mode=OneWay, Converter={StaticResource ResumeOrPauseConverter}}"/>
+                        </StackPanel>
+                    </Grid>
+                </Button>
+            </RelativePanel>
+            <Grid x:Name="ButtonsGrid" RelativePanel.AlignBottomWithPanel="True" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True">
+                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                    <Button Click="ShowFilePicker" Width="150">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <SymbolIcon Symbol="Upload" />
+                            <TextBlock HorizontalTextAlignment="Center">Add media</TextBlock>
+                        </StackPanel>
+                    </Button>
+                    <Button Click="RemoveAllMedia" Width="150">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <SymbolIcon Symbol="Delete" Foreground="{ThemeResource SystemFillColorCriticalBrush}"/>
+                            <TextBlock HorizontalTextAlignment="Center">Remove all</TextBlock>
+                        </StackPanel>
+                    </Button>
+                    <Button Click="GoBack" Width="150">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <SymbolIcon Symbol="Back" />
+                            <TextBlock HorizontalTextAlignment="Center">Go back</TextBlock>
+                        </StackPanel>
+                    </Button>
+                    <Button Width="150" Style="{StaticResource AccentButtonStyle}" IsEnabled="{x:Bind viewModel.CanConcat, Mode=OneWay}" Click="ProcessConcat">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <FontIcon Glyph="&#xF5A9;" />
+                            <TextBlock HorizontalTextAlignment="Center">Concat</TextBlock>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Grid>
+        </RelativePanel>
+        <Grid Visibility="{x:Bind viewModel.HasItems, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=True}"
+              BorderBrush="{ThemeResource SurfaceStrokeColorDefaultBrush}" BorderThickness="2"
+              CornerRadius="{StaticResource OverlayCornerRadius}" Width="500" Height="500" Background="Transparent">
+            <Button Padding="10" Click="ShowFilePicker" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <StackPanel>
+                    <Viewbox MaxWidth="100" Margin="10">
+                        <SymbolIcon Symbol="Upload" />
+                    </Viewbox>
+                    <TextBlock HorizontalTextAlignment="Center" Style="{StaticResource BaseTextBlockStyle}">Add media</TextBlock>
+                </StackPanel>
+            </Button>
+        </Grid>
+        <ContentDialog Name="ErrorDialog" IsPrimaryButtonEnabled="True" PrimaryButtonText="Ok"/>
+    </Grid>
+</Page>
