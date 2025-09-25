@@ -53,7 +53,8 @@ namespace ConcatMediaPage
                 CurrentRangeFileName = Path.GetFileName(fileNames[currentSegment])
             });
 
-            await StartProcess(ffmpegPath, $"-f concat -safe 0 -i \"{concatFileName}\" -c copy -map 0 \"{outputFileName}\"", null, (sender, args) =>
+            //-ignore_unknown specified to ignore streams whose codec was unrecognized by ffmpeg
+            await StartProcess(ffmpegPath, $"-f concat -safe 0 -i \"{concatFileName}\" -c copy -ignore_unknown -map 0 \"{outputFileName}\"", null, (sender, args) =>
             {
                 Debug.WriteLine(args.Data);
                 if (string.IsNullOrWhiteSpace(args.Data) || hasBeenKilled) return;
@@ -241,6 +242,68 @@ namespace ConcatMediaPage
             currentProcess = ffmpeg;
             await ffmpeg.WaitForExitAsync();
             ffmpeg.Dispose();
+            currentProcess = null;
+        }
+
+        /// <summary>
+        /// This method is not needed
+        /// Usage:
+        /// await StartProcessForMP4(ffmpegPath,
+        ///     $"-f concat -safe 0 -i \"{concatFileName}\" -c copy -bsf:v h264_mp4toannexb -f mpegts -",
+        ///     $"-i - -c copy \"{outputFileName}\"", ParseHandler);
+        /// </summary>
+        /// <param name="processFileName"></param>
+        /// <param name="arguments1"></param>
+        /// <param name="arguments2"></param>
+        /// <param name="errorEventHandler"></param>
+        /// <returns></returns>
+        async Task StartProcessForMP4(string processFileName, string arguments1, string arguments2, DataReceivedEventHandler? errorEventHandler)
+        {
+            Process ffmpeg = new()
+            {
+                StartInfo = new ProcessStartInfo()
+                {
+                    FileName = processFileName,
+                    Arguments = arguments1,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                },
+                EnableRaisingEvents = true
+            };
+            ffmpeg.ErrorDataReceived += errorEventHandler;
+
+            var ffmpeg2 = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = processFileName,
+                    Arguments = arguments2,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true,
+                    RedirectStandardError = true
+                }
+            };
+            ffmpeg2.ErrorDataReceived += errorEventHandler;
+
+            ffmpeg.Start();
+            ffmpeg.BeginErrorReadLine();
+            ffmpeg2.Start();
+            ffmpeg2.BeginErrorReadLine();
+
+            // Pipe binary stdout -> stdin
+            await using (var stdout = ffmpeg.StandardOutput.BaseStream)
+            await using (var stdin = ffmpeg2.StandardInput.BaseStream)
+            {
+                await stdout.CopyToAsync(stdin);
+            }
+
+            currentProcess = ffmpeg;
+            await ffmpeg.WaitForExitAsync();
+            currentProcess = ffmpeg2;
+            await ffmpeg2.WaitForExitAsync();
+            ffmpeg.Dispose();
+            ffmpeg2.Dispose();
             currentProcess = null;
         }
 

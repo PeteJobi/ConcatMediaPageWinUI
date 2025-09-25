@@ -42,7 +42,7 @@
             </Grid>
             <TextBlock x:Name="TextBlock" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
                        RelativePanel.Above="ProcessControls" Margin="0,0,0,10"
-                       Foreground="{StaticResource TextFillColorSecondaryBrush}" HorizontalTextAlignment="Center">
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalTextAlignment="Center">
                 You can re-order media by dragging and dropping them. This order they appear in the list will determine the order they 
                 are merged in the output media.
             </TextBlock>
