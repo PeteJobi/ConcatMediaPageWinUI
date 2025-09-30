@@ -17,7 +17,7 @@
         <converters:BoolToObjectConverter x:Key="ResumeOrPauseGlyphConverter" TrueValue="&#xE768;" FalseValue="&#xE784;"/>
     </Page.Resources>
 
-    <Grid AllowDrop="True" Drop="MainPage_OnDrop" DragOver="MainPage_OnDragOver" Margin="10">
+    <Grid AllowDrop="True" Drop="MainPage_OnDrop" DragOver="MainPage_OnDragOver" Margin="10" HorizontalAlignment="Center" VerticalAlignment="Center">
         <RelativePanel Visibility="{x:Bind viewModel.HasItems, Mode=OneWay}">
             <Grid RelativePanel.Above="TextBlock" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True">
                 <ListView Margin="0, 0, 0, 10" HorizontalAlignment="Center" ItemsSource="{x:Bind viewModel.Items, Mode=OneWay}"
