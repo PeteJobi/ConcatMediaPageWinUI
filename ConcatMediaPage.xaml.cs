@@ -30,7 +30,7 @@ namespace ConcatMediaPage
     {
         private string? navigateTo;
         private string ffmpegPath;
-        private string outputFile;
+        private string? outputFile;
         public MainModel viewModel = new() { Items = [] };
         private readonly ConcatProcessor concatProcessor = new();
         private readonly double progressMax = 1_000_000;
@@ -130,6 +130,8 @@ namespace ConcatMediaPage
             var failed = false;
             string? errorMessage = null;
 
+            string? tempOutputFile = null;
+            outputFile = null;
             try
             {
                 await concatProcessor.Concat(ffmpegPath, paths, progressMax, fileProgress, valueProgress, SetOutputFile, ErrorActionFromFfmpeg);
@@ -145,6 +147,7 @@ namespace ConcatMediaPage
 
                 viewModel.State = OperationState.AfterOperation;
                 CurrentSegmentFileName.Text = "Done";
+                outputFile = tempOutputFile;
             }
             catch (Exception ex)
             {
@@ -160,7 +163,7 @@ namespace ConcatMediaPage
 
             void SetOutputFile(string file)
             {
-                outputFile = file;
+                tempOutputFile = file;
             }
 
             async Task ErrorAction(string message)
