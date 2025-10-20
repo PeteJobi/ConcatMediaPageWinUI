@@ -8,6 +8,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:converters="using:CommunityToolkit.WinUI.Converters"
     xmlns:concatMediaPage="using:ConcatMediaPage"
+    xmlns:controls="using:WinUIShared.Controls"
     mc:Ignorable="d">
 
     <Page.Resources>
@@ -25,7 +26,7 @@
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="concatMediaPage:ConcatItem">
                             <Grid Height="auto" BorderBrush="{ThemeResource TextFillColorPrimaryBrush}" BorderThickness="1"
-                                    Background="{ThemeResource TrackBackground}" Padding="10"
+                                    Background="{ThemeResource ListItemBackground}" Padding="10"
                                     ToolTipService.ToolTip="{x:Bind FilePath}">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*"/>
