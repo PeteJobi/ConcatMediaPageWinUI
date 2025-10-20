@@ -213,7 +213,7 @@ namespace ConcatMediaPage
             }
         }
 
-        public void ViewFiles(string file)
+        public void ViewFile(string file)
         {
             var info = new ProcessStartInfo();
             info.FileName = "explorer";

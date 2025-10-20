@@ -5,6 +5,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
+using WinUIShared.Enums;
 
 namespace ConcatMediaPage
 {
@@ -32,13 +33,6 @@ namespace ConcatMediaPage
         {
             get => _state;
             set => SetProperty(ref _state, value, alsoNotify: [nameof(BeforeOperation), nameof(DuringOperation), nameof(AfterOperation), nameof(CanConcat)]);
-        }
-
-        private bool _processpaused;
-        public bool ProcessPaused
-        {
-            get => _processpaused;
-            set => SetProperty(ref _processpaused, value);
         }
 
         public bool HasItems => _items.Count > 0;
@@ -86,9 +80,5 @@ namespace ConcatMediaPage
             foreach (var dep in alsoNotify) OnPropertyChanged(dep);
             return true;
         }
-    }
-    public enum OperationState
-    {
-        BeforeOperation, DuringOperation, AfterOperation
     }
 }

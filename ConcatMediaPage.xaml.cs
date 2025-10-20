@@ -17,6 +17,7 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Storage.Pickers;
+using WinUIShared.Enums;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -33,7 +34,6 @@ namespace ConcatMediaPage
         private string outputFile;
         public MainModel viewModel = new() { Items = [] };
         private readonly ConcatProcessor concatProcessor = new();
-        private readonly double progressMax = 1_000_000;
         public static List<string> AllSupportedTypes = [".mkv", ".mp4", ".mp3", ".wav"];
 
         public ConcatMediaPage()
@@ -106,26 +106,26 @@ namespace ConcatMediaPage
         private async void ProcessConcat(object sender, RoutedEventArgs e)
         {
             if (viewModel.Items.Count < 2) return;
-            TotalSegmentCount.Text = string.Empty;
-            CurrentSegmentFileName.Text = string.Empty;
-            CurrentConcatProgressText.Text = string.Empty;
-            OverallConcatProgress.Value = 0;
-            CurrentConcatProgress.Value = 0;
+            ProcessProgress.LeftTextPrimary = string.Empty;
+            ProcessProgress.RightTextPrimary = string.Empty;
+            ProcessProgress.CenterTextSecondary = string.Empty;
+            ProcessProgress.ProgressPrimary = 0;
+            ProcessProgress.ProgressSecondary = 0;
 
             var paths = viewModel.Items.Select(i => i.FilePath).ToArray();
             viewModel.State = OperationState.DuringOperation;
 
             var fileProgress = new Progress<FileProgress>(progress =>
             {
-                if (progress.TotalRangeCount != null) TotalSegmentCount.Text = progress.TotalRangeCount;
+                if (progress.TotalRangeCount != null) ProcessProgress.LeftTextPrimary = progress.TotalRangeCount;
                 if (progress.CurrentRangeFileName != null)
-                    CurrentSegmentFileName.Text = progress.CurrentRangeFileName;
+                    ProcessProgress.RightTextPrimary = progress.CurrentRangeFileName;
             });
             var valueProgress = new Progress<ValueProgress>(progress =>
             {
-                OverallConcatProgress.Value = progress.OverallProgress;
-                CurrentConcatProgress.Value = progress.CurrentActionProgress;
-                CurrentConcatProgressText.Text = progress.CurrentActionProgressText;
+                ProcessProgress.ProgressPrimary = progress.OverallProgress;
+                ProcessProgress.ProgressSecondary = progress.CurrentActionProgress;
+                ProcessProgress.CenterTextSecondary = progress.CurrentActionProgressText;
             });
             var failed = false;
             string? errorMessage = null;
@@ -144,7 +144,7 @@ namespace ConcatMediaPage
                 }
 
                 viewModel.State = OperationState.AfterOperation;
-                CurrentSegmentFileName.Text = "Done";
+                ProcessProgress.RightTextPrimary = "Done";
             }
             catch (Exception ex)
             {
@@ -171,44 +171,19 @@ namespace ConcatMediaPage
             }
         }
 
-        private void PauseOrViewConcat_OnClick(object sender, RoutedEventArgs e)
-        {
-            if (viewModel.State == OperationState.AfterOperation)
-            {
-                concatProcessor.ViewFiles(outputFile);
-                return;
-            }
+        private void ProcessProgress_OnPauseRequested(object? sender, EventArgs e) => concatProcessor.Pause();
 
-            if (viewModel.ProcessPaused)
-            {
-                concatProcessor.Resume();
-                viewModel.ProcessPaused = false;
-            }
-            else
-            {
-                concatProcessor.Pause();
-                viewModel.ProcessPaused = true;
-            }
-        }
+        private void ProcessProgress_OnResumeRequested(object? sender, EventArgs e) => concatProcessor.Resume();
 
-        private void CancelOrCloseConcat_OnClick(object sender, RoutedEventArgs e)
-        {
-            if (viewModel.State == OperationState.AfterOperation)
-            {
-                viewModel.State = OperationState.BeforeOperation;
-                return;
-            }
+        private void ProcessProgress_OnViewRequested(object? sender, EventArgs e) => concatProcessor.ViewFile(outputFile);
 
-            FlyoutBase.ShowAttachedFlyout((FrameworkElement)sender);
-        }
-
-        private async void CancelProcess(object sender, RoutedEventArgs e)
+        private async void ProcessProgress_OnCancelRequested(object? sender, EventArgs e)
         {
             await concatProcessor.Cancel();
             viewModel.State = OperationState.BeforeOperation;
-            viewModel.ProcessPaused = false;
-            CancelFlyout.Hide();
         }
+
+        private void ProcessProgress_OnCloseRequested(object? sender, EventArgs e) => viewModel.State = OperationState.BeforeOperation;
 
         private void GoBack(object sender, RoutedEventArgs e)
         {
