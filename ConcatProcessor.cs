@@ -16,10 +16,11 @@ namespace ConcatMediaPage
         private Process? currentProcess;
         string[] filesCreated = [];
         private bool hasBeenKilled;
+        private const double Max = 100d;
         private const string FileNameLongError =
             "The source file name is too long. Shorten it to get the total number of characters in the destination directory lower than 256.\n\nDestination directory: ";
 
-        public async Task Concat(string ffmpegPath, string[] fileNames, double progressMax, IProgress<FileProgress> fileProgress, IProgress<ValueProgress> valueProgress, Action<string> setOutputFile, Action<string> error)
+        public async Task Concat(string ffmpegPath, string[] fileNames, IProgress<FileProgress> fileProgress, IProgress<ValueProgress> valueProgress, Action<string> setOutputFile, Action<string> error)
         {
             List<TimeSpan> segmentDurations = new();
             await StartProcess(ffmpegPath, string.Join(" ", fileNames.Select(name => $"-i \"{name}\"")), null, (sender, args) =>
@@ -75,14 +76,14 @@ namespace ConcatMediaPage
                         CurrentRangeFileName = Path.GetFileName(fileNames[currentSegment])
                     });
                 }
-                IncrementMergeProgress(currentTime, segmentDurations, totalDuration, currentSegment, progressMax, valueProgress);
+                IncrementMergeProgress(currentTime, segmentDurations, totalDuration, currentSegment, valueProgress);
             });
             if (HasBeenKilled()) return;
-            AllDone(segmentDurations.Count, progressMax, fileProgress, valueProgress);
+            AllDone(segmentDurations.Count, fileProgress, valueProgress);
             File.Delete(concatFileName);
         }
 
-        void IncrementMergeProgress(TimeSpan currentTime, List<TimeSpan> segmentDurations, TimeSpan totalDuration, int currentSegment, double max, IProgress<ValueProgress> progress)
+        void IncrementMergeProgress(TimeSpan currentTime, List<TimeSpan> segmentDurations, TimeSpan totalDuration, int currentSegment, IProgress<ValueProgress> progress)
         {
             var segmentDuration = segmentDurations[currentSegment];
             var totalSegments = segmentDurations.Count;
@@ -90,8 +91,8 @@ namespace ConcatMediaPage
             var fraction = (currentTime - (currentSegment * segmentDuration)) / currentSegmentDuration;
             progress.Report(new ValueProgress
             {
-                OverallProgress = currentTime / totalDuration * max,
-                CurrentActionProgress = Math.Max(0, Math.Min(fraction * max, max)),
+                OverallProgress = currentTime / totalDuration * Max,
+                CurrentActionProgress = Math.Max(0, Math.Min(fraction * Max, Max)),
                 CurrentActionProgressText = $"{Math.Round(fraction * 100, 2)} %"
             });
         }
@@ -133,7 +134,7 @@ namespace ConcatMediaPage
             return (outputFileName, concatFileName);
         }
 
-        void AllDone(int totalSegments, double max, IProgress<FileProgress> fileProgress, IProgress<ValueProgress> valueProgress)
+        void AllDone(int totalSegments, IProgress<FileProgress> fileProgress, IProgress<ValueProgress> valueProgress)
         {
             currentProcess = null;
             fileProgress.Report(new FileProgress
@@ -142,8 +143,8 @@ namespace ConcatMediaPage
             });
             valueProgress.Report(new ValueProgress
             {
-                OverallProgress = max,
-                CurrentActionProgress = max,
+                OverallProgress = Max,
+                CurrentActionProgress = Max,
                 CurrentActionProgressText = "100 %"
             });
         }

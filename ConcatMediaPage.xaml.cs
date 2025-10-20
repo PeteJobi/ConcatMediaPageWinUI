@@ -132,7 +132,7 @@ namespace ConcatMediaPage
 
             try
             {
-                await concatProcessor.Concat(ffmpegPath, paths, progressMax, fileProgress, valueProgress, SetOutputFile, ErrorActionFromFfmpeg);
+                await concatProcessor.Concat(ffmpegPath, paths, fileProgress, valueProgress, SetOutputFile, ErrorActionFromFfmpeg);
 
                 if (viewModel.State == OperationState.BeforeOperation) return; //Canceled
                 if (failed)
