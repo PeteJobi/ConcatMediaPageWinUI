@@ -44,11 +44,11 @@
                 You can re-order media by dragging and dropping them. This order they appear in the list will determine the order they 
                 are merged in the output media.
             </TextBlock>
-            <controls:ProcessProgress x:Name="ProcessProgress" RelativePanel.Above="ButtonsGrid" State="{x:Bind viewModel.State, Mode=OneWay}"
+            <controls:ProcessProgress x:Name="ProcessProgress" RelativePanel.Above="ButtonsGrid" State="{x:Bind viewModel.State, Mode=TwoWay}"
                                       PauseRequested="ProcessProgress_OnPauseRequested" ResumeRequested="ProcessProgress_OnResumeRequested"
                                       ViewRequested="ProcessProgress_OnViewRequested" CancelRequested="ProcessProgress_OnCancelRequested"
                                       RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True"
-                                      CloseRequested="ProcessProgress_OnCloseRequested"/>
+                                      CloseRequested="ProcessProgress_OnCloseRequested" Padding="0,0,0,10"/>
             <Grid x:Name="ButtonsGrid" RelativePanel.AlignBottomWithPanel="True" RelativePanel.AlignLeftWithPanel="True" RelativePanel.AlignRightWithPanel="True">
                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
                     <Button Click="ShowFilePicker" Width="150">
