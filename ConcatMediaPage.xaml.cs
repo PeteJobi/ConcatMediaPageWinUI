@@ -146,7 +146,7 @@ namespace ConcatMediaPage
                 }
 
                 viewModel.State = OperationState.AfterOperation;
-                CurrentSegmentFileName.Text = "Done";
+                ProcessProgress.RightTextPrimary = "Done";
                 outputFile = tempOutputFile;
             }
             catch (Exception ex)
