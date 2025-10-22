@@ -16,10 +16,11 @@ namespace ConcatMediaPage
         private Process? currentProcess;
         string[] filesCreated = [];
         private bool hasBeenKilled;
+        private const double Max = 100d;
         private const string FileNameLongError =
             "The source file name is too long. Shorten it to get the total number of characters in the destination directory lower than 256.\n\nDestination directory: ";
 
-        public async Task Concat(string ffmpegPath, string[] fileNames, double progressMax, IProgress<FileProgress> fileProgress, IProgress<ValueProgress> valueProgress, Action<string> setOutputFile, Action<string> error)
+        public async Task Concat(string ffmpegPath, string[] fileNames, IProgress<FileProgress> fileProgress, IProgress<ValueProgress> valueProgress, Action<string> setOutputFile, Action<string> error)
         {
             List<TimeSpan> segmentDurations = new();
             await StartProcess(ffmpegPath, string.Join(" ", fileNames.Select(name => $"-i \"{name}\"")), null, (sender, args) =>
@@ -53,7 +54,8 @@ namespace ConcatMediaPage
                 CurrentRangeFileName = Path.GetFileName(fileNames[currentSegment])
             });
 
-            await StartProcess(ffmpegPath, $"-f concat -safe 0 -i \"{concatFileName}\" -c copy -map 0 \"{outputFileName}\"", null, (sender, args) =>
+            //-ignore_unknown specified to ignore streams whose codec was unrecognized by ffmpeg
+            await StartProcess(ffmpegPath, $"-f concat -safe 0 -i \"{concatFileName}\" -c copy -ignore_unknown -map 0 \"{outputFileName}\"", null, (sender, args) =>
             {
                 Debug.WriteLine(args.Data);
                 if (string.IsNullOrWhiteSpace(args.Data) || hasBeenKilled) return;
@@ -74,14 +76,14 @@ namespace ConcatMediaPage
                         CurrentRangeFileName = Path.GetFileName(fileNames[currentSegment])
                     });
                 }
-                IncrementMergeProgress(currentTime, segmentDurations, totalDuration, currentSegment, progressMax, valueProgress);
+                IncrementMergeProgress(currentTime, segmentDurations, totalDuration, currentSegment, valueProgress);
             });
             if (HasBeenKilled()) return;
-            AllDone(segmentDurations.Count, progressMax, fileProgress, valueProgress);
+            AllDone(segmentDurations.Count, fileProgress, valueProgress);
             File.Delete(concatFileName);
         }
 
-        void IncrementMergeProgress(TimeSpan currentTime, List<TimeSpan> segmentDurations, TimeSpan totalDuration, int currentSegment, double max, IProgress<ValueProgress> progress)
+        void IncrementMergeProgress(TimeSpan currentTime, List<TimeSpan> segmentDurations, TimeSpan totalDuration, int currentSegment, IProgress<ValueProgress> progress)
         {
             var segmentDuration = segmentDurations[currentSegment];
             var totalSegments = segmentDurations.Count;
@@ -89,8 +91,8 @@ namespace ConcatMediaPage
             var fraction = (currentTime - (currentSegment * segmentDuration)) / currentSegmentDuration;
             progress.Report(new ValueProgress
             {
-                OverallProgress = currentTime / totalDuration * max,
-                CurrentActionProgress = Math.Max(0, Math.Min(fraction * max, max)),
+                OverallProgress = currentTime / totalDuration * Max,
+                CurrentActionProgress = Math.Max(0, Math.Min(fraction * Max, Max)),
                 CurrentActionProgressText = $"{Math.Round(fraction * 100, 2)} %"
             });
         }
@@ -132,7 +134,7 @@ namespace ConcatMediaPage
             return (outputFileName, concatFileName);
         }
 
-        void AllDone(int totalSegments, double max, IProgress<FileProgress> fileProgress, IProgress<ValueProgress> valueProgress)
+        void AllDone(int totalSegments, IProgress<FileProgress> fileProgress, IProgress<ValueProgress> valueProgress)
         {
             currentProcess = null;
             fileProgress.Report(new FileProgress
@@ -141,8 +143,8 @@ namespace ConcatMediaPage
             });
             valueProgress.Report(new ValueProgress
             {
-                OverallProgress = max,
-                CurrentActionProgress = max,
+                OverallProgress = Max,
+                CurrentActionProgress = Max,
                 CurrentActionProgressText = "100 %"
             });
         }
@@ -210,7 +212,7 @@ namespace ConcatMediaPage
             }
         }
 
-        public void ViewFiles(string file)
+        public void ViewFile(string file)
         {
             var info = new ProcessStartInfo();
             info.FileName = "explorer";
@@ -240,6 +242,68 @@ namespace ConcatMediaPage
             currentProcess = ffmpeg;
             await ffmpeg.WaitForExitAsync();
             ffmpeg.Dispose();
+            currentProcess = null;
+        }
+
+        /// <summary>
+        /// This method is not needed
+        /// Usage:
+        /// await StartProcessForMP4(ffmpegPath,
+        ///     $"-f concat -safe 0 -i \"{concatFileName}\" -c copy -bsf:v h264_mp4toannexb -f mpegts -",
+        ///     $"-i - -c copy \"{outputFileName}\"", ParseHandler);
+        /// </summary>
+        /// <param name="processFileName"></param>
+        /// <param name="arguments1"></param>
+        /// <param name="arguments2"></param>
+        /// <param name="errorEventHandler"></param>
+        /// <returns></returns>
+        async Task StartProcessForMP4(string processFileName, string arguments1, string arguments2, DataReceivedEventHandler? errorEventHandler)
+        {
+            Process ffmpeg = new()
+            {
+                StartInfo = new ProcessStartInfo()
+                {
+                    FileName = processFileName,
+                    Arguments = arguments1,
+                    CreateNoWindow = true,
+                    RedirectStandardError = true,
+                    RedirectStandardOutput = true,
+                },
+                EnableRaisingEvents = true
+            };
+            ffmpeg.ErrorDataReceived += errorEventHandler;
+
+            var ffmpeg2 = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = processFileName,
+                    Arguments = arguments2,
+                    CreateNoWindow = true,
+                    RedirectStandardInput = true,
+                    RedirectStandardError = true
+                }
+            };
+            ffmpeg2.ErrorDataReceived += errorEventHandler;
+
+            ffmpeg.Start();
+            ffmpeg.BeginErrorReadLine();
+            ffmpeg2.Start();
+            ffmpeg2.BeginErrorReadLine();
+
+            // Pipe binary stdout -> stdin
+            await using (var stdout = ffmpeg.StandardOutput.BaseStream)
+            await using (var stdin = ffmpeg2.StandardInput.BaseStream)
+            {
+                await stdout.CopyToAsync(stdin);
+            }
+
+            currentProcess = ffmpeg;
+            await ffmpeg.WaitForExitAsync();
+            currentProcess = ffmpeg2;
+            await ffmpeg2.WaitForExitAsync();
+            ffmpeg.Dispose();
+            ffmpeg2.Dispose();
             currentProcess = null;
         }
 
