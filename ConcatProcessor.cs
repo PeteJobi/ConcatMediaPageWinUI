@@ -66,7 +66,7 @@ namespace ConcatMediaPage
                 var matchCollection = Regex.Matches(args.Data, @"^frame=\s*\d+\s.+?time=(\d{2}:\d{2}:\d{2}\.\d{2}).+");
                 if (matchCollection.Count == 0) return;
                 var currentTime = TimeSpan.Parse(matchCollection[0].Groups[1].Value);
-                if (currentTime > elapsedSegmentDurationSum)
+                if (currentTime > elapsedSegmentDurationSum && currentSegment < segmentDurations.Count - 1)
                 {
                     currentSegment++;
                     elapsedSegmentDurationSum += segmentDurations[currentSegment];
