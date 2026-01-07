@@ -12,7 +12,12 @@
     mc:Ignorable="d">
 
     <Page.Resources>
-        <converters:BoolToVisibilityConverter x:Name="BoolToVisibilityConverter"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="ms-appx:///Resources/WinUISharedDictionary.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <converters:BoolToVisibilityConverter x:Name="BoolToVisibilityConverter"/>
+        </ResourceDictionary>
     </Page.Resources>
 
     <Grid AllowDrop="True" Drop="MainPage_OnDrop" DragOver="MainPage_OnDragOver" Margin="10" HorizontalAlignment="Center" VerticalAlignment="Center">
