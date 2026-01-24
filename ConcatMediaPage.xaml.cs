@@ -107,7 +107,7 @@ namespace ConcatMediaPage
             if (viewModel.Items.Count < 2) return;
             var paths = viewModel.Items.Select(i => i.FilePath).ToArray();
             outputFile = null;
-            outputFile = await ProcessManager.StartProcess(concatProcessor.Concat(paths));
+            outputFile = await ProcessManager.StartProcess(concatProcessor.Concat(paths, viewModel.ReEncode));
         }
 
         private void GoBack(object sender, RoutedEventArgs e)

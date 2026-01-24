@@ -35,6 +35,13 @@ namespace ConcatMediaPage
             set => SetProperty(ref _state, value, alsoNotify: [nameof(BeforeOperation), nameof(DuringOperation), nameof(AfterOperation), nameof(CanConcat)]);
         }
 
+        private bool _reencode;
+        public bool ReEncode
+        {
+            get => _reencode;
+            set => SetProperty(ref _reencode, value);
+        }
+
         public bool HasItems => _items.Count > 0;
         public bool CanConcat => _items.Count > 1 && !DuringOperation;
         public bool BeforeOperation => State == OperationState.BeforeOperation;
