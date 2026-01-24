@@ -15,7 +15,7 @@ namespace ConcatMediaPage
     {
         string concatFileName;
 
-        public async Task Concat(string[] fileNames)
+        public async Task Concat(string[] fileNames, bool reEncode)
         {
             List<TimeSpan> segmentDurations = new();
             await StartFfmpegProcess(string.Join(" ", fileNames.Select(name => $"-i \"{name}\"")), (sender, args) =>
@@ -45,32 +45,77 @@ namespace ConcatMediaPage
             leftTextPrimary.Report($"{currentSegment}/{total}");
             rightTextPrimary.Report(Path.GetFileName(fileNames[currentSegment]));
 
-            //-ignore_unknown specified to ignore streams whose codec was unrecognized by ffmpeg
-            await StartFfmpegProcess($"-f concat -safe 0 -i \"{concatFileName}\" -c copy -ignore_unknown -map 0 \"{outputFileName}\"", (_, currentTime, _, _) =>
+            if(!reEncode)
             {
-                if (currentTime > elapsedSegmentDurationSum && currentSegment < segmentDurations.Count - 1)
+                //-ignore_unknown specified to ignore streams whose codec was unrecognized by ffmpeg
+                await StartFfmpegProcess($"-f concat -safe 0 -i \"{concatFileName}\" -c copy -ignore_unknown -map 0:v? -map 0:a? -map 0:s? \"{outputFileName}\"", ReceivedEventHandler);
+            }
+            else
+            {
+                EnableHardwareDecoding(false);
+                var inputArgs = new StringBuilder();
+                var va = new StringBuilder();
+                for (var i = 0; i < fileNames.Length; i++)
                 {
-                    currentSegment++;
-                    elapsedSegmentDurationSum += segmentDurations[currentSegment];
-                    leftTextPrimary.Report($"{currentSegment}/{total}");
-                    rightTextPrimary.Report(Path.GetFileName(fileNames[currentSegment]));
+                    inputArgs.Append($"-i \"{fileNames[i]}\" ");
+                    va.Append($"[{i+1}:v][{i+1}:a]");
                 }
-                IncrementMergeProgress(currentTime, segmentDurations, totalDuration, currentSegment);
-            });
+
+                await StartFfmpegTranscodingProcessDefaultQuality(fileNames, outputFileName, $"-f concat -safe 0 -i \"{concatFileName}\"",
+                    $"-filter_complex \"{va} concat=n={fileNames.Length}:v=1:a=1 [v][a]\" -map \"[v]\" -map \"[a]\" -map 0:s? -map_chapters -1 -c:a aac -c:s copy",
+                    ReceivedEventHandler);
+            }
+
             if (HasBeenKilled()) return;
             AllDone(segmentDurations.Count);
             File.Delete(concatFileName);
+
+            int GetCurrentSegment(TimeSpan currentTime)
+            {
+                var sum = TimeSpan.Zero;
+                for (var i = 0; i < segmentDurations.Count; i++)
+                {
+                    sum += segmentDurations[i];
+                    if (currentTime <= sum) return i;
+                }
+                return -1;
+            }
+
+            void ReceivedEventHandler(object _, DataReceivedEventArgs args)
+            {
+                if (string.IsNullOrWhiteSpace(args.Data) || hasBeenKilled) return;
+                Debug.WriteLine(args.Data);
+                if (CheckFailureStrings(args.Data)) return;
+                if (CheckCannotBeMerged(args.Data)) return;
+                if (!args.Data.StartsWith("frame")) return;
+                if (CheckNoSpaceDuringProcess(args.Data)) return;
+                var matchCollection = Regex.Matches(args.Data, @"^frame=\s*\d+\s.+?time=(\d{2}:\d{2}:\d{2}\.\d{2}).+");
+                if (matchCollection.Count == 0) return;
+                var currentTime = TimeSpan.Parse(matchCollection[0].Groups[1].Value);
+                currentSegment = GetCurrentSegment(currentTime);
+                elapsedSegmentDurationSum += segmentDurations[currentSegment];
+                leftTextPrimary.Report($"{currentSegment}/{total}");
+                rightTextPrimary.Report(Path.GetFileName(fileNames[currentSegment]));
+                IncrementMergeProgress(currentTime, segmentDurations, totalDuration, currentSegment);
+            }
         }
 
         void IncrementMergeProgress(TimeSpan currentTime, List<TimeSpan> segmentDurations, TimeSpan totalDuration, int currentSegment)
         {
             var segmentDuration = segmentDurations[currentSegment];
-            var totalSegments = segmentDurations.Count;
-            var currentSegmentDuration = currentSegment < totalSegments - 1 ? segmentDuration : totalDuration - (currentSegment * segmentDuration);
-            var fraction = (currentTime - (currentSegment * segmentDuration)) / currentSegmentDuration;
+            var fraction = (currentTime - (currentSegment == 0 ? TimeSpan.Zero : segmentDurations[..currentSegment].Aggregate((curr, prev) => curr + prev))) / segmentDuration;
             progressPrimary.Report(currentTime / totalDuration * ProgressMax);
             progressSecondary.Report(Math.Max(0, Math.Min(fraction * ProgressMax, ProgressMax)));
             centerTextSecondary.Report($"{Math.Round(fraction * 100, 2)} %");
+        }
+
+        private bool CheckCannotBeMerged(string line)
+        {
+            if(currentProcess == null) return false;
+            if (!line.EndsWith("Bitstream filter not found") && !line.EndsWith("out of order")) return false;
+            if (!currentProcess.HasExited) currentProcess.Kill();
+            error("Process failed.\nThese files cannot be merged");
+            return true;
         }
 
         string GetOutputAndConcatFileNames(string firstFileName)
