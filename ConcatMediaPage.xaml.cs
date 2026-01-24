@@ -17,6 +17,7 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Windows.Storage.Pickers;
+using WinUIShared.Controls;
 using WinUIShared.Enums;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -45,6 +46,7 @@ namespace ConcatMediaPage
             if (e.Parameter is ConcatProps props)
             {
                 navigateTo = props.TypeToNavigateTo;
+                HardwareSelector.SelectedGpu = props.Gpu;
                 concatProcessor = new ConcatProcessor(props.FfmpegPath);
                 await AddMedia(props.MediaPaths.ToArray());
             }
@@ -123,5 +125,6 @@ namespace ConcatMediaPage
         public string FfmpegPath { get; set; }
         public IEnumerable<string> MediaPaths { get; set; }
         public string? TypeToNavigateTo { get; set; }
+        public GpuInfo? Gpu { get; set; }
     }
 }
