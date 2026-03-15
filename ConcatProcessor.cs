@@ -11,7 +11,7 @@ using WinUIShared.Helpers;
 
 namespace ConcatMediaPage
 {
-    public class ConcatProcessor(string ffmpegPath): Processor(ffmpegPath)
+    public class ConcatProcessor(string ffmpegPath): Processor(ffmpegPath, new FileLogger.FileLogger($"{nameof(ReelBox)}/Concat"))
     {
         string concatFileName;
 
@@ -85,6 +85,7 @@ namespace ConcatMediaPage
             {
                 if (string.IsNullOrWhiteSpace(args.Data) || hasBeenKilled) return;
                 Debug.WriteLine(args.Data);
+                logger.Log(args.Data);
                 if (CheckFailureStrings(args.Data)) return;
                 if (CheckCannotBeMerged(args.Data)) return;
                 if (!args.Data.StartsWith("frame")) return;
