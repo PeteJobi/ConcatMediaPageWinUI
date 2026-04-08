@@ -11,7 +11,7 @@ using WinUIShared.Helpers;
 
 namespace ConcatMediaPage
 {
-    public class ConcatProcessor(string ffmpegPath): Processor(ffmpegPath, new FileLogger.FileLogger($"{nameof(ReelBox)}/Concat"))
+    public class ConcatProcessor(string ffmpegPath): Processor(ffmpegPath, new FileLogger.FileLogger("ReelBox/Concat"))
     {
         string concatFileName;
 
