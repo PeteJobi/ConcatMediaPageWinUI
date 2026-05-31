@@ -93,15 +93,20 @@ namespace ConcatMediaPage
 
         private void RemoveAllMedia(object sender, RoutedEventArgs e)
         {
-            viewModel.Items.Clear();
-            if (viewModel.AfterOperation) viewModel.State = OperationState.BeforeOperation;
+            if (navigateTo == null)
+            {
+                viewModel.Items.Clear();
+                if (viewModel.AfterOperation) viewModel.State = OperationState.BeforeOperation;
+            }
+            else ReturnToNav();
         }
 
         private void DeleteItemClicked(object sender, RoutedEventArgs e)
         {
             var button = (Button)sender;
             var item = (ConcatItem)button.DataContext;
-            viewModel.Items.Remove(item);
+            if(viewModel.Items.Count > 1) viewModel.Items.Remove(item);
+            else ReturnToNav();
         }
 
         private async void ProcessConcat(object sender, RoutedEventArgs e)
@@ -112,11 +117,16 @@ namespace ConcatMediaPage
             outputFile = await ProcessManager.StartProcess(concatProcessor.Concat(paths, viewModel.ReEncode));
         }
 
+        private void ReturnToNav()
+        {
+            Frame.NavigateToType(Type.GetType(navigateTo), outputFile, new FrameNavigationOptions { IsNavigationStackEnabled = false });
+        }
+
         private void GoBack(object sender, RoutedEventArgs e)
         {
             _ = concatProcessor.Cancel();
             if (navigateTo == null) Frame.GoBack();
-            else Frame.NavigateToType(Type.GetType(navigateTo), outputFile, new FrameNavigationOptions { IsNavigationStackEnabled = false });
+            else ReturnToNav();
         }
     }
 
